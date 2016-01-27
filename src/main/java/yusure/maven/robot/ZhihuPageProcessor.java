@@ -1,15 +1,18 @@
 package yusure.maven.robot;
 import java.util.List;
 
+import javax.management.JMException;
+
 import us.codecraft.webmagic.Page;
 import us.codecraft.webmagic.Site;
 import us.codecraft.webmagic.Spider;
+import us.codecraft.webmagic.monitor.SpiderMonitor;
 import us.codecraft.webmagic.pipeline.FilePipeline;
 import us.codecraft.webmagic.processor.PageProcessor;
 import us.codecraft.webmagic.selector.Html;
 
 public class ZhihuPageProcessor implements PageProcessor {
-
+	 // 抓取网站的相关配置，包括编码、抓取间隔、重试次数等
     private Site site = Site.me().setCycleRetryTimes(5).setRetryTimes(5).setSleepTime(500).setTimeOut(3 * 60 * 1000)
             .setUserAgent("Mozilla/5.0 (Windows NT 6.1; WOW64; rv:38.0) Gecko/20100101 Firefox/38.0")
             .addHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
@@ -20,8 +23,11 @@ public class ZhihuPageProcessor implements PageProcessor {
 
 
     @Override
+    // process是定制爬虫逻辑的核心接口，在这里编写抽取逻辑
     public void process(Page page) {
+    	//获取符合条件的内容
         List<String> relativeUrl = page.getHtml().xpath("//li[@class='item clearfix']/div/a/@href").all();
+        //添加到待抓取队列中
         page.addTargetRequests(relativeUrl);
         relativeUrl = page.getHtml().xpath("//div[@id='zh-question-related-questions']//a[@class='question_link']/@href").all();
         page.addTargetRequests(relativeUrl);
@@ -46,11 +52,15 @@ public class ZhihuPageProcessor implements PageProcessor {
         return site;
     }
 
-    public static void main(String[] args) {
-        Spider.create(new ZhihuPageProcessor()).
-                addUrl("http://www.zhihu.com/search?type=question&q=java").
-                addPipeline(new FilePipeline("D:\\zhihu\\")).
-                thread(5).
-                run();
+    public static void main(String[] args) throws Exception {
+    	Spider zhihuSpider = Spider.create(new ZhihuPageProcessor()).
+        		//从"http://www.zhihu.com/search?type=question&q=java"开始抓
+                addUrl("http://www.zhihu.com/search?type=question&q=java");
+                
+        SpiderMonitor.instance().register(zhihuSpider);
+        
+        zhihuSpider.addPipeline(new FilePipeline("D:\\zhihu\\")).
+        thread(5).
+        run();
     }
 }
